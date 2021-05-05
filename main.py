@@ -5,11 +5,9 @@ import torch
 import torch.nn as nn
 import time
 
-
 from data import Corpus
 from Transformer import TransformerModel
 from RNN import RNNModel
-
 
 parser = argparse.ArgumentParser(description='PyTorch Language Model')
 parser.add_argument('--epochs', type=int, default=40,
@@ -29,11 +27,17 @@ args = parser.parse_args()
 torch.manual_seed(args.seed)
 
 # load data
-data_loader = Corpus(train_batch_size=args.train_batch_size,
-                     eval_batch_size=args.eval_batch_size,
-                     bptt=args.bptt)
+import pickle
 
-
+try:
+    with open('dataset.pkl', 'rb') as f:
+        data_loader = pickle.load(f)
+except OSError:
+    data_loader = Corpus(train_batch_size=args.train_batch_size,
+                         eval_batch_size=args.eval_batch_size,
+                         bptt=args.bptt)
+    with open('dataset.pkl', 'wb') as g:
+        pickle.dump(data_loader, g)
 
 # WRITE CODE HERE within two '#' bar
 ########################################
@@ -49,9 +53,8 @@ optimizer = torch.optim.SGD(model.parameters(), lr=lr)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1.0, gamma=0.95)
 
 
-
 def train():
-    model.train() # Turn on the train mode
+    model.train()  # Turn on the train mode
     total_loss = 0.
     start_time = time.time()
     log_interval = 200
@@ -64,17 +67,15 @@ def train():
         ######Your code here########
         ########################################
 
-
-
         if batch % log_interval == 0 and batch > 0:
             cur_loss = total_loss / log_interval
             elapsed = time.time() - start_time
             print('| epoch {:3d} | {:5d}/{:5d} batches | '
                   'lr {:02.2f} | ms/batch {:5.2f} | '
                   'loss {:5.2f} | ppl {:8.2f}'.format(
-                    epoch, batch, len(data_loader.train_data) // args.bptt, scheduler.get_last_lr()[0],
-                    elapsed * 1000 / log_interval,
-                    cur_loss, math.exp(cur_loss)))
+                epoch, batch, len(data_loader.train_data) // args.bptt, scheduler.get_last_lr()[0],
+                              elapsed * 1000 / log_interval,
+                cur_loss, math.exp(cur_loss)))
             total_loss = 0
             start_time = time.time()
 
@@ -86,7 +87,7 @@ def train():
 # And then exp(average cross-entropy loss) is perplexity.
 
 def evaluate(eval_model, data_source):
-    eval_model.eval() # Turn on the evaluation mode
+    eval_model.eval()  # Turn on the evaluation mode
     total_loss = 0.
     with torch.no_grad():
         for i in range(0, data_source.size(0) - 1, args.bptt):
@@ -95,9 +96,6 @@ def evaluate(eval_model, data_source):
             ########################################
             ######Your code here########
             ########################################
-
-
-
 
 
 # Train Function
