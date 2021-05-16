@@ -1,5 +1,8 @@
+# RNN.py
+
 import torch
 import torch.nn as nn
+
 
 class RNNModel(nn.Module):
     # Language model is composed of three parts: a word embedding layer, a rnn network and a output layer.
@@ -15,6 +18,8 @@ class RNNModel(nn.Module):
         ######Your code here########
         ########################################
 
+        self.lstm = nn.LSTM(ninput, nhid, nlayers)
+
         self.decoder = nn.Linear(nhid, nvoc)
         self.init_weights()
         self.nhid = nhid
@@ -26,7 +31,7 @@ class RNNModel(nn.Module):
         self.decoder.bias.data.zero_()
         self.decoder.weight.data.uniform_(-init_uniform, init_uniform)
 
-    def forward(self, input):
+    def forward(self, input, pre_hidden):
         embeddings = self.drop(self.encoder(input))
 
         # With embeddings, you can get your output here.
@@ -36,10 +41,18 @@ class RNNModel(nn.Module):
         ######Your code here########
         ########################################
 
-        output = None
-        hidden = None
+        semi_out, hidden = self.lstm(embeddings, pre_hidden)
+        #output = self.decoder(semi_out)
 
-        output = self.drop(output)
-        decoded = self.decoder(output.view(output.size(0)*output.size(1), output.size(2)))
+        output = self.drop(semi_out)
+        decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
         return decoded.view(output.size(0), output.size(1), decoded.size(1)), hidden
 
+    def init_hidden(self, batch_size):
+        # Create two new tensors with sizes nlayers * batch_size * nhid,
+        # initialized to zero, for hidden state and cell state of LSTM
+        weight = next(self.parameters()).data
+        unit = weight.new(self.nlayers, batch_size, self.nhid).zero_()
+        if torch.cuda.is_available():
+            unit.cuda()
+        return tuple([unit] * 2)

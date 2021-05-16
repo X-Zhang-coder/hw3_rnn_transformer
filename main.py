@@ -1,3 +1,5 @@
+# main.py
+
 # coding: utf-8
 import argparse
 import math
@@ -21,7 +23,7 @@ parser.add_argument('--bptt', type=int, default=35, metavar='N',
 parser.add_argument('--seed', type=int, default=1234,
                     help='set random seed')
 
-args = parser.parse_args()
+args = parser.parse_args(args=[])
 
 # Set the random seed manually for reproducibility.
 torch.manual_seed(args.seed)
@@ -31,18 +33,24 @@ import pickle
 
 try:
     with open('dataset.pkl', 'rb') as f:
-        data_loader = pickle.load(f)
+        data_loader = pickle.load(f, encoding='bytes')
 except OSError:
     data_loader = Corpus(train_batch_size=args.train_batch_size,
                          eval_batch_size=args.eval_batch_size,
                          bptt=args.bptt)
+
     with open('dataset.pkl', 'wb') as g:
         pickle.dump(data_loader, g)
 
 # WRITE CODE HERE within two '#' bar
 ########################################
 # bulid your language model here
-model = None
+
+num_voc = len(data_loader.vocab) + 1
+input_size = 400
+hid_size = 256
+
+model = RNNModel(nvoc=num_voc, ninput=input_size, nhid=hid_size, nlayers=2)
 
 ########################################
 
@@ -68,6 +76,7 @@ def train():
         ########################################
 
         if batch % log_interval == 0 and batch > 0:
+            optimizer.step()
             cur_loss = total_loss / log_interval
             elapsed = time.time() - start_time
             print('| epoch {:3d} | {:5d}/{:5d} batches | '
@@ -86,7 +95,7 @@ def train():
 # Calculate the average cross-entropy loss between the prediction and the ground truth word.
 # And then exp(average cross-entropy loss) is perplexity.
 
-def evaluate(eval_model, data_source):
+def evaluate(eval_model, data_source, hidden):
     eval_model.eval()  # Turn on the evaluation mode
     total_loss = 0.
     with torch.no_grad():
@@ -96,6 +105,8 @@ def evaluate(eval_model, data_source):
             ########################################
             ######Your code here########
             ########################################
+            hidden = tuple([e.data for e in hidden])
+            prediction, hidden = eval_model.forward(data, hidden)
 
 
 # Train Function
@@ -104,8 +115,9 @@ best_model = None
 
 for epoch in range(1, args.epochs + 1):
     epoch_start_time = time.time()
+    lstm_hidden = model.init_hidden(batch_size=args.train_batch_size)
     train()
-    val_loss = evaluate(model, data_loader.val_data)
+    val_loss = evaluate(model, data_loader.val_data, model.init_hidden(batch_size=args.eval_batch_size))
     print('-' * 89)
     print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
           'valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
