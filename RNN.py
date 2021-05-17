@@ -1,6 +1,7 @@
 # RNN.py
 
 import torch
+from torch._C import device
 import torch.nn as nn
 
 
@@ -53,6 +54,5 @@ class RNNModel(nn.Module):
         # initialized to zero, for hidden state and cell state of LSTM
         weight = next(self.parameters()).data
         unit = weight.new(self.nlayers, batch_size, self.nhid).zero_()
-        if torch.cuda.is_available():
-            unit.cuda()
-        return tuple([unit] * 2)
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        return tuple([unit.to(device)] * 2)

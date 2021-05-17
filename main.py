@@ -4,6 +4,7 @@
 import argparse
 import math
 import torch
+from torch._C import device
 import torch.nn as nn
 import time
 
@@ -56,7 +57,7 @@ input_size = 400
 hid_size = 256
 
 model = RNNModel(nvoc=num_voc, ninput=input_size, nhid=hid_size, nlayers=2)
-
+model.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
 ########################################
 
 
