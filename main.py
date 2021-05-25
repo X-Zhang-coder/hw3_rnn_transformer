@@ -30,20 +30,7 @@ args = parser.parse_args(args=[])
 torch.manual_seed(args.seed)
 
 # load data
-'''
-import pickle
 
-try:
-    with open('dataset.pkl', 'rb') as f:
-        data_loader = pickle.load(f, encoding='bytes')
-except OSError:
-    data_loader = Corpus(train_batch_size=args.train_batch_size,
-                         eval_batch_size=args.eval_batch_size,
-                         bptt=args.bptt)
-
-    with open('dataset.pkl', 'wb') as g:
-        pickle.dump(data_loader, g)
-'''
 data_loader = Corpus(train_batch_size=args.train_batch_size,
                          eval_batch_size=args.eval_batch_size,
                          bptt=args.bptt)
@@ -72,8 +59,8 @@ def train():
     start_time = time.time()
     log_interval = 200
 
-    for batch in range(0, data_loader.train_data.size(0) - 1, args.bptt):
-        data, targets = data_loader.get_batch(data_loader.train_data, batch)
+    for batch, i in enumerate(range(0, data_loader.train_data.size(0) - 1, args.bptt)):
+        data, targets = data_loader.get_batch(data_loader.train_data, i)
         optimizer.zero_grad()
 
         ########################################
@@ -110,14 +97,17 @@ def evaluate(eval_model, data_source):
     eval_model.eval()  # Turn on the evaluation mode
     total_loss = 0.
     with torch.no_grad():
-        for i in range(0, data_source.size(0) - 1, args.bptt):
+        batches = range(0, data_source.size(0) - 1, args.bptt)
+        for i in batches:
             data, targets = data_loader.get_batch(data_source, i)
 
             ########################################
             ######Your code here########
             ########################################
             prediction = eval_model(data)
-
+            loss = criterion(prediction.view(prediction.shape[0]*prediction.shape[1], -1), targets)
+            total_loss += loss
+    return total_loss / len(batches)
 
 # Train Function
 best_val_loss = float("inf")
