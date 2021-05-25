@@ -60,7 +60,6 @@ model = RNNModel(nvoc=num_voc, ninput=input_size, nhid=hid_size, nlayers=2)
 model.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
 ########################################
 
-
 criterion = nn.CrossEntropyLoss()
 lr = 5.0  # learning rate
 optimizer = torch.optim.SGD(model.parameters(), lr=lr)
@@ -73,16 +72,22 @@ def train():
     start_time = time.time()
     log_interval = 200
 
-    for batch, i in enumerate(range(0, data_loader.train_data.size(0) - 1, args.bptt)):
-        data, targets = data_loader.get_batch(data_loader.train_data, i)
+    for batch in range(0, data_loader.train_data.size(0) - 1, args.bptt):
+        data, targets = data_loader.get_batch(data_loader.train_data, batch)
         optimizer.zero_grad()
 
         ########################################
         ######Your code here########
         ########################################
 
+        model.init_hidden(batch_size=args.train_batch_size)
+        outputs = model(data)
+        loss = criterion(outputs.view(outputs.shape[0]*outputs.shape[1], -1), targets)
+        total_loss += loss
+        loss.backward()
+        optimizer.step()
+
         if batch % log_interval == 0 and batch > 0:
-            optimizer.step()
             cur_loss = total_loss / log_interval
             elapsed = time.time() - start_time
             print('| epoch {:3d} | {:5d}/{:5d} batches | '
@@ -101,7 +106,7 @@ def train():
 # Calculate the average cross-entropy loss between the prediction and the ground truth word.
 # And then exp(average cross-entropy loss) is perplexity.
 
-def evaluate(eval_model, data_source, hidden):
+def evaluate(eval_model, data_source):
     eval_model.eval()  # Turn on the evaluation mode
     total_loss = 0.
     with torch.no_grad():
@@ -111,8 +116,7 @@ def evaluate(eval_model, data_source, hidden):
             ########################################
             ######Your code here########
             ########################################
-            hidden = tuple([e.data for e in hidden])
-            prediction, hidden = eval_model.forward(data, hidden)
+            prediction = eval_model(data)
 
 
 # Train Function
@@ -121,9 +125,9 @@ best_model = None
 
 for epoch in range(1, args.epochs + 1):
     epoch_start_time = time.time()
-    lstm_hidden = model.init_hidden(batch_size=args.train_batch_size)
     train()
-    val_loss = evaluate(model, data_loader.val_data, model.init_hidden(batch_size=args.eval_batch_size))
+    model.init_hidden(batch_size=args.eval_batch_size)
+    val_loss = evaluate(model, data_loader.val_data)
     print('-' * 89)
     print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
           'valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),

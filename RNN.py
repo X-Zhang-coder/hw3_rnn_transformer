@@ -25,6 +25,7 @@ class RNNModel(nn.Module):
         self.init_weights()
         self.nhid = nhid
         self.nlayers = nlayers
+        self.hidden = None
 
     def init_weights(self):
         init_uniform = 0.1
@@ -32,7 +33,7 @@ class RNNModel(nn.Module):
         self.decoder.bias.data.zero_()
         self.decoder.weight.data.uniform_(-init_uniform, init_uniform)
 
-    def forward(self, input, pre_hidden):
+    def forward(self, input):
         embeddings = self.drop(self.encoder(input))
 
         # With embeddings, you can get your output here.
@@ -41,18 +42,17 @@ class RNNModel(nn.Module):
         ########################################
         ######Your code here########
         ########################################
-
-        semi_out, hidden = self.lstm(embeddings, pre_hidden)
+        semi_out, self.hidden = self.lstm(embeddings, self.hidden)
         #output = self.decoder(semi_out)
 
         output = self.drop(semi_out)
         decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
-        return decoded.view(output.size(0), output.size(1), decoded.size(1)), hidden
+        return decoded.view(output.size(0), output.size(1), decoded.size(1))
 
     def init_hidden(self, batch_size):
         # Create two new tensors with sizes nlayers * batch_size * nhid,
         # initialized to zero, for hidden state and cell state of LSTM
         weight = next(self.parameters()).data
         unit = weight.new(self.nlayers, batch_size, self.nhid).zero_()
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        return tuple([unit.to(device)] * 2)
+        unit.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+        self.hidden = tuple([unit, unit])
